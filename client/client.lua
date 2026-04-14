@@ -1,10 +1,30 @@
 Jobs = {}
 local Targets = {}
 local Peds = {}
+local Blips = {}
 local items = BRIDGE.GetItems()
+
+local function getPlayerJobName()
+    local playerData = QBX and QBX.PlayerData
+    return playerData and playerData.job and playerData.job.name or nil
+end
+
+local function getPlayerGangName()
+    local playerData = QBX and QBX.PlayerData
+    return playerData and playerData.gang and playerData.gang.name or nil
+end
 
 local function AddNewPed(pedData)
     table.insert(Peds, pedData)
+end
+
+local function clearVisuals()
+    for _, blip in pairs(Blips) do
+        if DoesBlipExist(blip) then
+            RemoveBlip(blip)
+        end
+    end
+    Blips = {}
 end
 
 local function generateCrafting(craftItems, label, type)
@@ -18,14 +38,15 @@ local function generateCrafting(craftItems, label, type)
                 value = ""
             }}
             for _, l in pairs(k.ingedience) do
-                local label = items[l.itemName].label
                 if not items[l.itemName] then
                     print("[PLS] Error  ITEM NOT FOUND")
+                else
+                    local label = items[l.itemName].label
+                    table.insert(metadata, {
+                        label = label,
+                        value = l.itemCount
+                    })
                 end
-                table.insert(metadata, {
-                    label = label,
-                    value = l.itemCount
-                })
             end
 
             table.insert(options, {
@@ -55,8 +76,8 @@ local function generateCrafting(craftItems, label, type)
                     end
                     if hasAllItems then
                         local animData = {
-                            anim = Config.DEFAULT_ANIM,
-                            dict = Config.DEFAULT_ANIM_DIC
+                            anim = Config.DefaultCraftAnimation.anim,
+                            dict = Config.DefaultCraftAnimation.dict
                         }
                         if k.animation then
                             animData = {
@@ -164,7 +185,20 @@ local function openCashRegister(job)
 end
 
 local function GenerateCraftings()
+    clearVisuals()
+
     for _, job in pairs(Jobs) do
+        if job.coords then
+            local blip = AddBlipForCoord(job.coords.x, job.coords.y, job.coords.z)
+            SetBlipSprite(blip, 280)
+            SetBlipScale(blip, 0.7)
+            SetBlipAsShortRange(blip, true)
+            BeginTextCommandSetBlipName('STRING')
+            AddTextComponentString(job.label or job.job)
+            EndTextCommandSetBlipName(blip)
+            table.insert(Blips, blip)
+        end
+
         for _, crafting in pairs(job.craftings) do
             local craftinglabel = crafting.label
             local targetId = BRIDGE.AddSphereTarget({
@@ -174,8 +208,8 @@ local function GenerateCraftings()
                     icon = crafting.icon or 'fa-solid fa-screwdriver-wrench',
                     label = string.format("Abrir %s", crafting.label),
                     onSelect = function(data)
-                        local jobname = BRIDGE.GetPlayerJob()
-                        local gangname = BRIDGE.GetPlayerGang()
+                        local jobname = getPlayerJobName()
+                        local gangname = getPlayerGangName()
 
                         if crafting.public or (jobname == job.job) or (gangname == job.job) then
                             local icon = crafting.icon or 'fa-solid fa-screwdriver-wrench'
@@ -212,7 +246,7 @@ local function GenerateCraftings()
                     icon = 'fa-solid fa-briefcase',
                     label = "Bater ponto",
                     onSelect = function(data)
-                        local jobname = BRIDGE.GetPlayerJob()
+                        local jobname = getPlayerJobName()
                         if jobname == job.job then
                             TriggerServerEvent("QBCore:ToggleDuty")
                         else
@@ -240,8 +274,8 @@ local function GenerateCraftings()
                     icon = 'fa-solid fa-circle',
                     label = "Caixa registradora",
                     onSelect = function(data)
-                        local jobname = BRIDGE.GetPlayerJob()
-                        local gangname = BRIDGE.GetPlayerGang()
+                        local jobname = getPlayerJobName()
+                        local gangname = getPlayerGangName()
 
                         if jobname == job.job or gangname == job.job then
                             openCashRegister(job.job)
@@ -269,7 +303,7 @@ local function GenerateCraftings()
                     icon = 'fa-solid fa-circle',
                     label = "Alarme",
                     onSelect = function(data)
-                        local jobname = BRIDGE.GetPlayerJob()
+                        local jobname = getPlayerJobName()
                         if jobname == job.job then
                             local alert = lib.alertDialog({
                                 header = "Ligue para a polícia",
@@ -295,6 +329,38 @@ local function GenerateCraftings()
             table.insert(Targets, AlarmTarget)
         end
 
+        ------- STASHES
+        for _, stash in pairs(job.stashes or {}) do
+            if stash.coords then
+                local stashTarget = BRIDGE.AddSphereTarget({
+                    coords = vector3(stash.coords.x, stash.coords.y, stash.coords.z),
+                    options = {{
+                        name = ('stash_%s'):format(stash.id),
+                        icon = 'fa-solid fa-box-open',
+                        label = stash.label or 'Abrir baú',
+                        onSelect = function()
+                            local jobname = getPlayerJobName()
+                            local gangname = getPlayerGangName()
+                            local canAccess = stash.public or stash.job == false or jobname == job.job or gangname == job.job
+
+                            if not canAccess then
+                                return lib.notify({
+                                    title = "Você não tem permissão",
+                                    description = "Você não pode usar isso.",
+                                    type = "error"
+                                })
+                            end
+
+                            BRIDGE.OpenStash(stash.id)
+                        end
+                    }},
+                    debug = false,
+                    radius = 0.3
+                })
+                table.insert(Targets, stashTarget)
+            end
+        end
+
         if job.bossmenu then
             local BossTarget = BRIDGE.AddSphereTarget({
                 coords = vector3(job.bossmenu.x, job.bossmenu.y, job.bossmenu.z),
@@ -303,8 +369,8 @@ local function GenerateCraftings()
                     icon = 'fa-solid fa-laptop',
                     label = "Boss menu",
                     onSelect = function(data)
-                        local jobname = BRIDGE.GetPlayerJob()
-                        local gangname = BRIDGE.GetPlayerGang()
+                        local jobname = getPlayerJobName()
+                        local gangname = getPlayerGangName()
                         if jobname == job.job or gangname == job.job then
                             openBossmenu(job.type)
                         else
@@ -372,4 +438,9 @@ AddEventHandler("mri_Qjobsystem:client:Pull", function(ServerJobs)
     Jobs = ServerJobs
     Wait(100)
     GenerateCraftings()
+end)
+
+AddEventHandler('onResourceStop', function(resourceName)
+    if resourceName ~= GetCurrentResourceName() then return end
+    clearVisuals()
 end)

@@ -1,88 +1,41 @@
+# mri_Qjobsystem_v2 (Qbox + ox stack)
 
-![job_system](https://github.com/polisek/pls_jobsystem/assets/107623238/44215dfa-591e-4753-9d7e-b36806b4cc80)
+Sistema de criação/gestão de jobs e gangs com foco em **Qbox**, **ox_lib**, **ox_inventory**, **ox_target** e **oxmysql**.
 
-# 📙 Job system v1.0.5
-Job system for creating production tables.
+## Dependências
+- qbx_core
+- qbx_management
+- ox_lib
+- ox_inventory
+- ox_target
+- oxmysql
+- mri_Qbox
 
-## Dependencies
-- ox_lib - https://github.com/overextended/ox_lib
+## Comandos
+- `/createjob` - abre o criador de jobs/gangs
+- `/open_jobs` - abre o menu administrativo
 
-## Supports 
-Frameworks: ESX / QB / OX
+## Principais mudanças desta versão
+- Bridge simplificada para stack nativo Qbox/ox (removidas camadas multi-framework legadas).
+- Registro de stashes e shops nativamente via ox_inventory.
+- Interações unificadas em ox_target.
+- Validações no servidor para crafting, permissões administrativas e acesso por job/gang.
+- Configuração de segurança centralizada em `config.lua`.
 
-Inventory: ox_inventory, qb_inventory, quasar_inventory.
-
-Targets: ox_target, qb-target
-
-## Don't want to use target?
-**BRIDGE/config.lua**
+## Configuração
+### Segurança
 ```lua
-BRIDGE.UseMarkers = false
-```
-## Commands
-/createjob - This will start to create a new job.
-/open_jobs - Opens the menu of all jobs.
-
-## Configuration
-All framework, inventory and target setup in BRIDGE/config.lua.
-
-**Directory to your inventory images**
-```lua
-Config.DirectoryToInventoryImages = "nui://ox_inventory/web/images/"
-```
-
-**Blacklisted strings / Filter**
-```lua
-Config.BlacklistedStrings = {
-    "weapon", "weed", "meth","coke", "ammo", "gun", "pistol", "drug", "c4", "WEAPON", "AMMO", "at_", "keycard", "gun", "money", "black_money"
+Config.Security = {
+    maxCraftAmount = 50,
+    creatorAce = 'group.admin'
 }
 ```
 
-**Crafting animation**
+### Diretório de imagens
 ```lua
-Config.DEFAULT_ANIM = "hack_loop"
-Config.DEFAULT_ANIM_DIC = "mp_prison_break"
-```
-**Dispatch**
-```lua
-function SendDispatch(coords, jobLabel)
-        -- YOU DISPATCH
-        -- cache.ped
-        print(coords)
-        print(jobLabel)
-end
+Config.DirectoryToInventoryImages = 'nui://ox_inventory/web/images/'
 ```
 
-
-## Questions
-**Do I need to create a job in the database or in the framework?:** Yes, this script will not create anything in your db, but you can customize it.
-
-## Features and updates
-**Update 25.2.2024**
-- You can create an alarm
-- You can create a cash register.
-
-**Update 26.2.2024**
-
-- Item filter
-
-**Update 9.3.2024**
-- You can create backups and the backup can be restored in game.
-- For each item you can add a custom animation for crafting.
-- Added bossmenu - Configurable export in config.lua
-- You can create peds with custom animations.
-- You can create stashes ( For everyone or just employees. ) (quasar_inventory, ox_inventory only)
-
-## Preview
-https://youtu.be/BK9EfBzi-Eg
-
-**New preview**
-https://www.youtube.com/watch?v=id_kd4f8_DU&t=3s
-
-
-## Join my discord or check my store
-**Discord**:https://discord.com/invite/HyNKsABYrb
-
-**Store**: https://store.polisek.io
-
-**Web**: https://polisek.io
+## Observações
+- O recurso agora é intencionalmente focado em Qbox + ox stack.
+- Para abrir menus de gestão, o player deve possuir ACE do `Config.Security.creatorAce`.
