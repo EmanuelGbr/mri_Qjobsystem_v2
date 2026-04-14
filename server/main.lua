@@ -1,6 +1,84 @@
 local Jobs = {}
 local dataJobs = {}
 
+local function findJobByName(jobName)
+    for _, job in pairs(Jobs) do
+        if job.job == jobName then
+            return job
+        end
+    end
+end
+
+local function hasCreatorPermissions(playerId)
+    return IsPlayerAceAllowed(playerId, Config.Security.creatorAce)
+end
+
+local function getPlayerGroups(playerId)
+    local player = exports.qbx_core:GetPlayer(playerId)
+    if not player then return nil, nil end
+
+    local playerData = player.PlayerData
+    return playerData.job and playerData.job.name, playerData.gang and playerData.gang.name
+end
+
+local function canAccessJob(playerId, jobName)
+    local playerJob, playerGang = getPlayerGroups(playerId)
+    return playerJob == jobName or playerGang == jobName
+end
+
+local function recipesMatch(recipeA, recipeB)
+    if recipeA.itemName ~= recipeB.itemName then return false end
+    if (recipeA.itemCount or 1) ~= (recipeB.itemCount or 1) then return false end
+
+    local ingredientsA = recipeA.ingedience or {}
+    local ingredientsB = recipeB.ingedience or {}
+    if #ingredientsA ~= #ingredientsB then return false end
+
+    for _, ingredientA in pairs(ingredientsA) do
+        local found = false
+        for _, ingredientB in pairs(ingredientsB) do
+            if ingredientA.itemName == ingredientB.itemName and ingredientA.itemCount == ingredientB.itemCount then
+                found = true
+                break
+            end
+        end
+        if not found then
+            return false
+        end
+    end
+
+    return true
+end
+
+local function canCraftRecipe(playerId, recipeData)
+    for _, job in pairs(Jobs) do
+        if canAccessJob(playerId, job.job) then
+            for _, crafting in pairs(job.craftings or {}) do
+                for _, recipe in pairs(crafting.items or {}) do
+                    if recipesMatch(recipe, recipeData) then
+                        return true
+                    end
+                end
+            end
+        end
+    end
+    return false
+end
+
+local function buildStashGroups(jobName, stashData)
+    if stashData and stashData.public then
+        return nil
+    end
+
+    if stashData and stashData.job == false then
+        return nil
+    end
+
+    return {
+        [jobName] = 0
+    }
+end
+
 local function decodeGrades(grades)
     local result = {}
     local count = -1
@@ -29,7 +107,7 @@ local function LoadJobs(isStarting)
 
     local data = DB.FetchJobs()
     if #data <= 0 then
-        local loadFile = LoadResourceFile(GetCurrentResourceName(), "./server/jobs.json")
+        local loadFile = LoadResourceFile(GetCurrentResourceName(), "./server/data/jobs.json")
         Jobs = json.decode(loadFile) or {}
 
         DB.InsertJobs(Jobs)
@@ -41,7 +119,7 @@ local function LoadJobs(isStarting)
         if isStarting then
             if job.stashes then
                 for _, stash in pairs(job.stashes) do
-                    BRIDGE.RegisterStash(stash.id, stash.label, stash.slots, stash.weight)
+                    BRIDGE.RegisterStash(stash.id, stash.label, stash.slots, stash.weight, buildStashGroups(job.job, stash), stash.coords)
                 end
             else
                 job.stashes = {}
@@ -120,17 +198,7 @@ local function SaveJobs()
 end
 
 local function IsJobExist(jobName)
-    for _, job in pairs(Jobs) do
-        if job.job == jobName then
-            return true
-        end
-    end
-    return false
-end
-
-local function IsPlayerHasCustomPerms(playerId)
-    -- THIS IS FOR YOUR CUSTOM PERMS
-    return true
+    return findJobByName(jobName) ~= nil
 end
 
 lib.callback.register('mri_Qjobsystem:server:getBalance', function(source, jobName)
@@ -147,7 +215,7 @@ end)
 RegisterNetEvent("mri_Qjobsystem:server:saveNewJob", function(jobData)
     local src = source
     if CanTrustPlayer(src) then
-        if IsPlayerHasCustomPerms(src) then
+        if hasCreatorPermissions(src) then
             if not IsJobExist(jobData.job) then
                 table.insert(Jobs, jobData)
                 lib.notify(src, {
@@ -176,7 +244,7 @@ end)
 RegisterNetEvent("mri_Qjobsystem:server:saveJob", function(jobData)
     local src = source
     if CanTrustPlayer(src) then
-        if IsPlayerHasCustomPerms(src) then
+        if hasCreatorPermissions(src) then
             if IsJobExist(jobData.job) then
                 for i, v in pairs(Jobs) do
                     if v.job == jobData.job then
@@ -203,7 +271,7 @@ end)
 RegisterNetEvent("mri_Qjobsystem:server:deleteJob", function(jobData)
     local src = source
     if CanTrustPlayer(src) then
-        if IsPlayerHasCustomPerms(src) then
+        if hasCreatorPermissions(src) then
             if IsJobExist(jobData.job) then
                 for i, v in pairs(Jobs) do
                     if v.job == jobData.job then
@@ -230,11 +298,11 @@ end)
 RegisterNetEvent("mri_Qjobsystem:server:pullChanges", function(pullType)
     local src = source
     if CanTrustPlayer(src) then
-        if IsPlayerHasCustomPerms(src) then
+        if hasCreatorPermissions(src) then
             for _, job in pairs(Jobs) do
                 if job.stashes then
                     for _, stash in pairs(job.stashes) do
-                        BRIDGE.RegisterStash(stash.id, stash.label, stash.slots, stash.weight)
+                        BRIDGE.RegisterStash(stash.id, stash.label, stash.slots, stash.weight, buildStashGroups(job.job, stash), stash.coords)
                     end
                 else
                     job.stashes = {}
@@ -250,10 +318,19 @@ RegisterNetEvent("mri_Qjobsystem:server:pullChanges", function(pullType)
 end)
 
 RegisterNetEvent("mri_Qjobsystem:server:createItem", function(craftingData, amount)
-    local amount = amount or 1
+    local amount = math.floor(amount or 1)
     local src = source
     if CanTrustPlayer(src) then
-        if IsPlayerHasCustomPerms(src) then
+        if amount <= 0 or amount > Config.Security.maxCraftAmount then
+            lib.notify(src, {
+                title = 'Negado',
+                description = 'Quantidade inválida.',
+                type = 'error'
+            })
+            return
+        end
+
+        if canCraftRecipe(src, craftingData) then
             local hasAllItems = true
             for _, v in pairs(craftingData.ingedience) do
                 if v.itemCount * amount > BRIDGE.GetItemCount(src, v.itemName) then
@@ -272,6 +349,12 @@ RegisterNetEvent("mri_Qjobsystem:server:createItem", function(craftingData, amou
                     type = "error"
                 })
             end
+        else
+            lib.notify(src, {
+                title = 'Negado',
+                description = 'Receita inválida ou sem permissão.',
+                type = 'error'
+            })
         end
     end
 end)
@@ -279,7 +362,7 @@ end)
 RegisterNetEvent("mri_Qjobsystem:server:makeRegisterAction", function(jobName, action, number)
     local src = source
     if CanTrustPlayer(src) then
-        if IsJobExist(jobName) then
+        if IsJobExist(jobName) and canAccessJob(src, jobName) then
             for _, job in pairs(Jobs) do
                 if job.job == jobName then
                     if not job.balance then
@@ -330,7 +413,7 @@ end)
 RegisterNetEvent("mri_Qjobsystem:server:createBackup", function(pullType)
     local src = source
     if CanTrustPlayer(src) then
-        SaveResourceFile(GetCurrentResourceName(), "./server/backup.json", json.encode(Jobs), -1)
+        SaveResourceFile(GetCurrentResourceName(), "./server/data/backup.json", json.encode(Jobs), -1)
         lib.notify(src, {
             title = "Backup feito com sucesso!",
             description = "Parabéns! Agora você pode fazer coisas estúpidas.",
@@ -342,7 +425,7 @@ end)
 RegisterNetEvent("mri_Qjobsystem:server:setBackup", function(pullType)
     local src = source
     if CanTrustPlayer(src) then
-        local loadFile = LoadResourceFile(GetCurrentResourceName(), "./server/backup.json")
+        local loadFile = LoadResourceFile(GetCurrentResourceName(), "./server/data/backup.json")
         if loadFile then
             Jobs = json.decode(loadFile)
             SaveJobs()

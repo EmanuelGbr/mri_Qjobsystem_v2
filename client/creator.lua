@@ -374,12 +374,12 @@ local function selectJob(jobData)
                     end
                 }, {
                     title = "Restaurar último backup existente",
-                    description = "Usar o último backup! Primeiro verifique se server/backup.json NÃO ESTÁ VAZIO!",
+                    description = "Usar o último backup! Primeiro verifique se server/data/backup.json NÃO ESTÁ VAZIO!",
                     icon = "floppy-disk",
                     onSelect = function()
                         local alert = lib.alertDialog({
                             header = 'Restaurar backup',
-                            content = 'Você realmente quer fazer isso?** Confira backup.json no server/backup.json para ver se o arquivo existe ou está vazio! **',
+                            content = 'Você realmente quer fazer isso?** Confira backup.json no server/data/backup.json para ver se o arquivo existe ou está vazio! **',
                             centered = true,
                             cancel = true
                         })
