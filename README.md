@@ -1,6 +1,6 @@
 # mri_Qjobsystem_v2 (Qbox + ox stack)
 
-Sistema de criação/gestão de jobs e gangs com foco em **Qbox**, **ox_lib**, **ox_inventory**, **ox_target** e **oxmysql**.
+Sistema de criação/gestão de jobs e gangs focado em Qbox e ecossistema ox.
 
 ## Dependências
 - qbx_core
@@ -11,20 +11,39 @@ Sistema de criação/gestão de jobs e gangs com foco em **Qbox**, **ox_lib**, *
 - oxmysql
 - mri_Qbox
 
+## Estrutura (padronizada no estilo pls_jobsystem)
+```txt
+fxmanifest.lua
+shared/
+  bridge.lua
+  config.lua
+  secure.lua
+  utilities.lua
+client/
+  main.lua
+  creator.lua
+  bridge/
+    inventory.lua
+    target.lua
+server/
+  main.lua
+  db.lua
+  bridge/
+    framework.lua
+    inventory.lua
+  data/
+    jobs.json
+    backup.json
+locales/
+```
+
 ## Comandos
 - `/createjob` - abre o criador de jobs/gangs
 - `/open_jobs` - abre o menu administrativo
 
-## Principais mudanças desta versão
-- Bridge simplificada para stack nativo Qbox/ox (removidas camadas multi-framework legadas).
-- Registro de stashes e shops nativamente via ox_inventory.
-- Interações unificadas em ox_target.
-- Suporte a peds configurados em `job.peds` (model + cenário/animação), com spawn/cleanup automáticos.
-- Validações no servidor para crafting, permissões administrativas e acesso por job/gang.
-- Configuração de segurança centralizada em `config.lua`.
+## Configuração principal
+Arquivo: `shared/config.lua`
 
-## Configuração
-### Segurança
 ```lua
 Config.Security = {
     maxCraftAmount = 50,
@@ -32,11 +51,6 @@ Config.Security = {
 }
 ```
 
-### Diretório de imagens
-```lua
-Config.DirectoryToInventoryImages = 'nui://ox_inventory/web/images/'
-```
-
-## Observações
-- O recurso agora é intencionalmente focado em Qbox + ox stack.
-- Para abrir menus de gestão, o player deve possuir ACE do `Config.Security.creatorAce`.
+## Notas
+- A base foi reorganizada para um padrão semântico-funcional próximo ao `pls_jobsystem`.
+- Fluxos legados multi-framework foram removidos para manter foco em Qbox/ox.

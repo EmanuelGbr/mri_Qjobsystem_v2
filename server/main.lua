@@ -107,7 +107,7 @@ local function LoadJobs(isStarting)
 
     local data = DB.FetchJobs()
     if #data <= 0 then
-        local loadFile = LoadResourceFile(GetCurrentResourceName(), "./server/jobs.json")
+        local loadFile = LoadResourceFile(GetCurrentResourceName(), "./server/data/jobs.json")
         Jobs = json.decode(loadFile) or {}
 
         DB.InsertJobs(Jobs)
@@ -413,7 +413,7 @@ end)
 RegisterNetEvent("mri_Qjobsystem:server:createBackup", function(pullType)
     local src = source
     if CanTrustPlayer(src) then
-        SaveResourceFile(GetCurrentResourceName(), "./server/backup.json", json.encode(Jobs), -1)
+        SaveResourceFile(GetCurrentResourceName(), "./server/data/backup.json", json.encode(Jobs), -1)
         lib.notify(src, {
             title = "Backup feito com sucesso!",
             description = "Parabéns! Agora você pode fazer coisas estúpidas.",
@@ -425,7 +425,7 @@ end)
 RegisterNetEvent("mri_Qjobsystem:server:setBackup", function(pullType)
     local src = source
     if CanTrustPlayer(src) then
-        local loadFile = LoadResourceFile(GetCurrentResourceName(), "./server/backup.json")
+        local loadFile = LoadResourceFile(GetCurrentResourceName(), "./server/data/backup.json")
         if loadFile then
             Jobs = json.decode(loadFile)
             SaveJobs()

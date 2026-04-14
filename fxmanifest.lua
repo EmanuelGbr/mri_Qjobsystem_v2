@@ -8,25 +8,26 @@ ox_lib 'locale'
 
 shared_scripts {
     '@ox_lib/init.lua',
-    'BRIDGE/config.lua',
-    'config.lua',
-    'secure.lua',
-    'client/utilities.lua'
+    'shared/bridge.lua',
+    'shared/config.lua',
+    'shared/secure.lua',
+    'shared/utilities.lua'
 }
 
 client_scripts {
     '@qbx_core/modules/playerdata.lua',
-    'BRIDGE/client/inventory.lua',
-    'BRIDGE/client/target.lua',
-    'client/*.lua',
+    'client/bridge/inventory.lua',
+    'client/bridge/target.lua',
+    'client/main.lua',
+    'client/creator.lua',
 }
 
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
-    'BRIDGE/server/framework.lua',
-    'BRIDGE/server/inventory.lua',
+    'server/bridge/framework.lua',
+    'server/bridge/inventory.lua',
     'server/db.lua',
-    'server/server.lua',
+    'server/main.lua',
 }
 
 dependencies {
@@ -39,5 +40,6 @@ dependencies {
 }
 
 files {
-    'locales/*.json'
+    'locales/*.json',
+    'server/data/*.json'
 }
