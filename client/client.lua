@@ -18,6 +18,15 @@ local function AddNewPed(pedData)
     table.insert(Peds, pedData)
 end
 
+local function clearPeds()
+    for _, ped in pairs(Peds) do
+        if DoesEntityExist(ped) then
+            DeleteEntity(ped)
+        end
+    end
+    Peds = {}
+end
+
 local function clearVisuals()
     for _, blip in pairs(Blips) do
         if DoesBlipExist(blip) then
@@ -184,7 +193,67 @@ local function openCashRegister(job)
     end
 end
 
+local function loadModel(model)
+    local modelHash = model
+    if type(model) == 'string' then
+        modelHash = joaat(model)
+    end
+
+    if not IsModelInCdimage(modelHash) then return nil end
+    RequestModel(modelHash)
+
+    local timeout = GetGameTimer() + 5000
+    while not HasModelLoaded(modelHash) do
+        if GetGameTimer() > timeout then
+            return nil
+        end
+        Wait(0)
+    end
+
+    return modelHash
+end
+
+local function playPedAnimation(ped, pedData)
+    if pedData.scenario then
+        TaskStartScenarioInPlace(ped, pedData.scenario, 0, true)
+        return
+    end
+
+    local anim = pedData.animation or {}
+    if anim.dict and anim.anim then
+        RequestAnimDict(anim.dict)
+        local timeout = GetGameTimer() + 3000
+        while not HasAnimDictLoaded(anim.dict) do
+            if GetGameTimer() > timeout then
+                return
+            end
+            Wait(0)
+        end
+        TaskPlayAnim(ped, anim.dict, anim.anim, 8.0, -8.0, -1, anim.flag or 1, 0.0, false, false, false)
+    end
+end
+
+local function createConfiguredPed(pedData)
+    if not pedData or not pedData.model or not pedData.coords then return end
+
+    local modelHash = loadModel(pedData.model)
+    if not modelHash then return end
+
+    local heading = pedData.heading or pedData.coords.w or 0.0
+    local ped = CreatePed(4, modelHash, pedData.coords.x, pedData.coords.y, pedData.coords.z - 1.0, heading, false, false)
+    SetModelAsNoLongerNeeded(modelHash)
+
+    if not DoesEntityExist(ped) then return end
+
+    FreezeEntityPosition(ped, true)
+    SetEntityInvincible(ped, true)
+    SetBlockingOfNonTemporaryEvents(ped, true)
+    playPedAnimation(ped, pedData)
+    AddNewPed(ped)
+end
+
 local function GenerateCraftings()
+    clearPeds()
     clearVisuals()
 
     for _, job in pairs(Jobs) do
@@ -235,6 +304,10 @@ local function GenerateCraftings()
                 radius = 0.2
             })
             table.insert(Targets, targetId)
+        end
+
+        for _, pedData in pairs(job.peds or {}) do
+            createConfiguredPed(pedData)
         end
 
         ------- ON DUTY
@@ -442,5 +515,6 @@ end)
 
 AddEventHandler('onResourceStop', function(resourceName)
     if resourceName ~= GetCurrentResourceName() then return end
+    clearPeds()
     clearVisuals()
 end)

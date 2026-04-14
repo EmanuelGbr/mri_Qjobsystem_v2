@@ -19,6 +19,7 @@ Sistema de criação/gestão de jobs e gangs com foco em **Qbox**, **ox_lib**, *
 - Bridge simplificada para stack nativo Qbox/ox (removidas camadas multi-framework legadas).
 - Registro de stashes e shops nativamente via ox_inventory.
 - Interações unificadas em ox_target.
+- Suporte a peds configurados em `job.peds` (model + cenário/animação), com spawn/cleanup automáticos.
 - Validações no servidor para crafting, permissões administrativas e acesso por job/gang.
 - Configuração de segurança centralizada em `config.lua`.
 
